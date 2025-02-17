@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { YoutubeVideo, Clock, Copy, CheckCircle2 } from "lucide-react";
+import { Youtube, Clock, Copy, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface VideoMetadata {
@@ -75,7 +75,7 @@ const Index = () => {
       <form onSubmit={handleSubmit} className="w-full max-w-2xl">
         <div className="glass-panel p-6 space-y-6">
           <div className="relative">
-            <YoutubeVideo className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="url"
               placeholder="Paste YouTube URL here"
