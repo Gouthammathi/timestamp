@@ -1,69 +1,82 @@
-# Welcome to your Lovable project
+# YouTube Timestamp Creator
 
-## Project info
+A modern web application that allows users to create, manage, and share timestamps for YouTube videos with an intuitive interface.
 
-**URL**: https://lovable.dev/projects/7823e19a-d6fe-4e65-b788-568f2ad0d30a
+## Features
 
-## How can I edit this code?
+- 🎥 Embedded YouTube video player
+- ⌚ Easy timestamp creation with multiple input methods:
+  - Direct time input
+  - Slider scrubbing
+  - Keyboard shortcuts
+  - Quick jump buttons
+- 📝 Add descriptions to timestamps
+- 📋 Copy formatted timestamps to clipboard
+- 🎮 Playback controls with keyboard shortcuts
+- 🎯 Real-time time tracking
+- 🔍 Video URL validation
+- 📱 Responsive design
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- YouTube IFrame API
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7823e19a-d6fe-4e65-b788-568f2ad0d30a) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js (v14 or higher)
+- npm (v6 or higher)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd youtube-timestamp-creator
+```
 
-Follow these steps:
+2. Install dependencies
+```bash
+npm install
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Open your browser and visit `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Usage
 
-**Use GitHub Codespaces**
+1. Paste a YouTube video URL in the input field
+2. Wait for the video to load
+3. Use any of these methods to create timestamps:
+   - Type the time directly (mm:ss or hh:mm:ss format)
+   - Use the slider to scrub to desired position
+   - Use keyboard shortcuts (Arrow keys, Space for play/pause)
+   - Click the quick jump buttons
+4. Add a description for your timestamp
+5. Click "Add Timestamp" or press Enter
+6. Copy all timestamps to clipboard when done
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Keyboard Shortcuts
 
-## What technologies are used for this project?
+- `Space`: Play/Pause video
+- `←`: Go back 5 seconds
+- `→`: Go forward 5 seconds
+- `Enter`: Add timestamp (when description is filled)
 
-This project is built with .
+## Contributing
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Feel free to open issues and pull requests for any improvements you'd like to add.
 
-## How can I deploy this project?
+## License
 
-Simply open [Lovable](https://lovable.dev/projects/7823e19a-d6fe-4e65-b788-568f2ad0d30a) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+MIT License - feel free to use this project for any purpose.
