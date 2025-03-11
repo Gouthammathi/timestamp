@@ -1,6 +1,5 @@
-
-import { useState, useRef } from "react";
-import { Youtube, Clock, Copy, CheckCircle2, Plus, Play, Trash2 } from "lucide-react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { Youtube, Clock, Copy, CheckCircle2, Plus, Play, Trash2, ChevronLeft, ChevronRight, Pause, Rewind, FastForward } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +19,13 @@ interface Timestamp {
   seconds: number;
 }
 
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
 const Index = () => {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,6 +35,11 @@ const Index = () => {
   const [currentTime, setCurrentTime] = useState("0:00");
   const [currentDescription, setCurrentDescription] = useState("");
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const [player, setPlayer] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [showTimeTooltip, setShowTimeTooltip] = useState(false);
   
   // Extract YouTube video ID from URL
   const extractVideoId = (url: string): string | null => {
@@ -48,25 +59,59 @@ const Index = () => {
     return 0;
   };
 
-  // Format seconds to time string
+  // Format seconds to display time
+  const formatSeconds = (totalSeconds: number): string => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Parse time input and validate
+  const parseTimeInput = (input: string): number => {
+    const parts = input.split(':').map(part => parseInt(part));
+    let totalSeconds = 0;
+    
+    if (parts.length === 2) {
+      totalSeconds = parts[0] * 60 + parts[1];
+    } else if (parts.length === 3) {
+      totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    
+    return Math.min(totalSeconds, videoDuration);
+  };
+
+  // Format time string with validation
   const formatTimeString = (input: string): string => {
     // Remove non-numeric characters except colon
     let cleaned = input.replace(/[^\d:]/g, '');
     
     // Ensure proper time format (m:ss or h:mm:ss)
     const parts = cleaned.split(':');
+    let totalSeconds = 0;
     
     if (parts.length <= 2) {
       // Handle minutes:seconds format
       const minutes = parts[0] || '0';
       const seconds = parts.length > 1 ? parts[1].padEnd(2, '0').substring(0, 2) : '00';
+      totalSeconds = parseInt(minutes) * 60 + parseInt(seconds);
       cleaned = `${minutes}:${seconds}`;
     } else {
       // Handle hours:minutes:seconds format
       const hours = parts[0] || '0';
       const minutes = parts[1] || '00';
       const seconds = parts[2].padEnd(2, '0').substring(0, 2) || '00';
+      totalSeconds = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
       cleaned = `${hours}:${minutes}:${seconds}`;
+    }
+    
+    // Validate against video duration
+    if (totalSeconds > videoDuration && videoDuration > 0) {
+      return formatSeconds(videoDuration);
     }
     
     return cleaned;
@@ -163,11 +208,138 @@ const Index = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Load YouTube IFrame API
+  useEffect(() => {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+
+    window.onYouTubeIframeAPIReady = () => {
+      if (metadata?.videoId && playerRef.current) {
+        initializePlayer(metadata.videoId);
+      }
+    };
+  }, []);
+
+  // Initialize or update player when video ID changes
+  useEffect(() => {
+    if (metadata?.videoId && window.YT) {
+      initializePlayer(metadata.videoId);
+    }
+  }, [metadata?.videoId]);
+
+  // Handle keyboard shortcuts
+  const handleTimeKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!player) return;
+
+    const currentSeconds = timeToSeconds(currentTime);
+    
+    switch(e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        adjustTime(-5);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        adjustTime(5);
+        break;
+      case ' ':
+        e.preventDefault();
+        togglePlayPause();
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (currentSeconds <= videoDuration) {
+          seekTo(currentSeconds);
+        }
+        break;
+    }
+  };
+
+  // Initialize player with duration tracking
+  const initializePlayer = (videoId: string) => {
+    if (!playerRef.current) return;
+
+    const newPlayer = new window.YT.Player(playerRef.current, {
+      height: '360',
+      width: '640',
+      videoId: videoId,
+      playerVars: {
+        playsinline: 1,
+        modestbranding: 1,
+        rel: 0
+      },
+      events: {
+        onReady: (event: any) => {
+          setVideoDuration(event.target.getDuration());
+        },
+        onStateChange: (event: any) => {
+          setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
+          
+          // Update current time while playing
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            const timeUpdateInterval = setInterval(() => {
+              if (player && player.getCurrentTime) {
+                const currentSeconds = Math.floor(player.getCurrentTime());
+                setCurrentTime(formatSeconds(currentSeconds));
+              }
+            }, 1000);
+
+            return () => clearInterval(timeUpdateInterval);
+          }
+        }
+      }
+    });
+
+    setPlayer(newPlayer);
+  };
+
+  const togglePlayPause = () => {
+    if (!player) return;
+    
+    if (isPlaying) {
+      player.pauseVideo();
+    } else {
+      player.playVideo();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const captureCurrentTime = () => {
+    if (!player) return;
+    
+    const currentSeconds = Math.floor(player.getCurrentTime());
+    const minutes = Math.floor(currentSeconds / 60);
+    const seconds = currentSeconds % 60;
+    setCurrentTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+  };
+
+  const seekTo = (seconds: number) => {
+    if (!player) return;
+    player.seekTo(seconds, true);
+  };
+
+  // Update openTimestampedVideo to use embedded player when possible
   const openTimestampedVideo = (timestamp: Timestamp) => {
     if (!metadata) return;
     
-    const timestampUrl = `https://www.youtube.com/watch?v=${metadata.videoId}&t=${timestamp.seconds}s`;
-    window.open(timestampUrl, "_blank");
+    if (player) {
+      seekTo(timestamp.seconds);
+      player.playVideo();
+    } else {
+      const timestampUrl = `https://www.youtube.com/watch?v=${metadata.videoId}&t=${timestamp.seconds}s`;
+      window.open(timestampUrl, "_blank");
+    }
+  };
+
+  const adjustTime = (seconds: number) => {
+    if (!player) return;
+    
+    const currentSeconds = Math.floor(player.getCurrentTime());
+    const newSeconds = Math.min(Math.max(currentSeconds + seconds, 0), videoDuration);
+    setCurrentTime(formatSeconds(newSeconds));
+    seekTo(newSeconds);
   };
 
   return (
@@ -214,14 +386,32 @@ const Index = () => {
       {metadata && (
         <div className="glass-panel p-6 w-full max-w-2xl space-y-6">
           <div className="space-y-4">
-            <div className="aspect-video rounded-lg overflow-hidden">
-              <img
-                src={metadata.thumbnail}
-                alt={metadata.title}
-                className="w-full h-full object-cover"
-              />
+            <div className="aspect-video rounded-lg overflow-hidden bg-black">
+              <div ref={playerRef} className="w-full h-full" />
             </div>
-            <h2 className="text-xl font-semibold">{metadata.title}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{metadata.title}</h2>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={togglePlayPause}
+                  className="flex items-center gap-2"
+                >
+                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  {isPlaying ? 'Pause' : 'Play'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={captureCurrentTime}
+                  className="flex items-center gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  Capture Time
+                </Button>
+              </div>
+            </div>
           </div>
 
           <Card className="border-none shadow-sm bg-white/60 backdrop-blur-sm">
@@ -230,14 +420,66 @@ const Index = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-4">
-                <div className="w-full sm:w-1/3">
-                  <Input
-                    type="text"
-                    placeholder="mm:ss"
-                    value={currentTime}
-                    onChange={(e) => setCurrentTime(formatTimeString(e.target.value))}
-                    className="w-full text-center font-mono"
+                <div className="w-full sm:w-1/3 space-y-2">
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="mm:ss"
+                      value={currentTime}
+                      onChange={(e) => setCurrentTime(formatTimeString(e.target.value))}
+                      onKeyDown={handleTimeKeyDown}
+                      onFocus={() => setShowTimeTooltip(true)}
+                      onBlur={() => setShowTimeTooltip(false)}
+                      className="w-full text-center font-mono"
+                    />
+                    {showTimeTooltip && (
+                      <div className="absolute -top-12 left-0 right-0 bg-black text-white text-xs py-1 px-2 rounded text-center">
+                        Use arrow keys to adjust time. Space to play/pause.
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-center items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => adjustTime(-10)}
+                      title="Back 10 seconds"
+                    >
+                      <Rewind className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={togglePlayPause}
+                      className="min-w-[80px]"
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => adjustTime(10)}
+                      title="Forward 10 seconds"
+                    >
+                      <FastForward className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={videoDuration}
+                    value={timeToSeconds(currentTime)}
+                    onChange={(e) => {
+                      const seconds = parseInt(e.target.value);
+                      setCurrentTime(formatSeconds(seconds));
+                      seekTo(seconds);
+                    }}
+                    className="w-full"
                   />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0:00</span>
+                    <span>{formatSeconds(videoDuration)}</span>
+                  </div>
                 </div>
                 <div className="w-full sm:w-2/3">
                   <Textarea
